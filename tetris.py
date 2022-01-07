@@ -10,12 +10,17 @@ import random
 
 class Tetris:
     def __init__(self):
-        self.SIZE = (20, 20)  # width, height
+        self.SIZE = (10, 20)  # width, height
         self.board = self.init_board()
+        self.score = 0
 
         # Setup screen and game window
         self.scr = curses.initscr()
-        self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
+        curses.start_color()
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            curses.init_pair(i + 1, i, -1)
+        self.TERM_SIZE = [0, 0]
         curses.noecho()
         curses.cbreak()
         curses.curs_set(False)
@@ -28,10 +33,9 @@ class Tetris:
         self.win.refresh()
 
         self.score_win = curses.newwin(3, 20, 0, self.SIZE[0]+3)
-        self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
-        self.score_win.addstr(1, 1, "Score: 0", curses.A_BOLD)
-        self.score_win.refresh()
+        self.update_score(0)
 
+        self.update_size()
         while not self.check_end():
             self.display()
 
@@ -42,6 +46,8 @@ class Tetris:
             last = datetime.now()
             
             while not player.is_on_ground(self.board):
+                if curses.is_term_resized(self.TERM_SIZE[0], self.TERM_SIZE[1]):
+                    self.update_size()
                 self.display(player.put_player(self.board))
                 tdelta = (datetime.now() - last).total_seconds()
                 tdelta = tdelta if tdelta < 0.1 else 0
@@ -53,7 +59,7 @@ class Tetris:
                 except:
                     pass
                 curses.flushinp()
-                player.action(action)
+                player.action(action, self.board)
                 self.display()
                 i += 1
                 if i >= move_every or action == "KEY_DOWN":
@@ -64,10 +70,35 @@ class Tetris:
 
         # End screen
         curses.flushinp()
-        self.win.getch()
-        input()
+        self.score_win.getch()
         curses.echo()
         curses.endwin()
+
+    def update_size(self):
+        while True:
+            self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
+            curses.resizeterm(self.TERM_SIZE[0], self.TERM_SIZE[1])
+            try:
+                if self.TERM_SIZE[1] < (self.SIZE[1]+2)*2 or self.TERM_SIZE[0] < self.SIZE[1]+2:
+                        self.win.addstr(0, 0, "Terminal too small!")
+                        curses.flushinp()
+                        self.win.getch()
+                else:
+                    self.win.clear()
+                    self.win.border(0, 0, 0, 0, 0, 0, 0, 0)
+                    self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+                    self.win.refresh()
+                    self.score_win.refresh()
+                    break
+            except:
+                break
+
+    def update_score(self, delta: int):
+        self.score_win.clear()
+        self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+        self.score_win.addstr(1, 1, f"Score: {self.score + delta}", curses.color_pair(10))
+        self.score_win.refresh()
+
 
     def init_board(self):
         board = []
@@ -88,20 +119,20 @@ class Tetris:
         board = self.board if custom_board is None else custom_board
         for y, row in enumerate(board):
             for x, block in enumerate(row):
-                self.win.addch(y+1, x+1, block.getch())
+                self.win.addch(y+1, x+1, block.getch(), curses.color_pair(block.getcol()))
         self.win.refresh()
 
 
     class Block:
         CHARS={"block": "█", "dot": "·"}
-        def __init__(self, active: bool, color=None):
+        def __init__(self, active: bool, color=0):
             self.active = active
             self.color = color
 
         def set_state(self, state: bool):
             self.active = state
 
-        def set_color(self, color: str):
+        def set_color(self, color: int):
             self.color = color
 
         def getch(self):
@@ -110,21 +141,25 @@ class Tetris:
             else:
                 return self.CHARS['dot']
 
+        def getcol(self):
+            return self.color
+
     class Player:
         TYPES = {
-            "o": ["o", "xx xx"],
-            "l": ["l", "..x xxx"],
-            "j": ["j", "x.. xxx"],
-            "i": ["i", "xxxx"],
-            "s": ["s", ".xx xx."],
-            "t": ["t", ".x. xxx"],
-            "z": ["z", "xx. .xx"],
+            "o": ["o", "xx xx", 227],
+            "l": ["l", "..x xxx", 4],
+            "j": ["j", "x.. xxx", 20],
+            "i": ["i", "xxxx", 7],
+            "s": ["s", ".xx xx.", 3],
+            "t": ["t", ".x. xxx", 6],
+            "z": ["z", "xx. .xx", 2],
         }
         def __init__(self, block_type: list, map_size: list):
             self.name = block_type[0]
             self.shape = block_type[1]
+            self.color = block_type[2]
             self.size = map_size
-            self.x = 10 - (len(self.shape.split()) // 2)
+            self.x = self.size[0]//2 - (len(self.shape.split()) // 2)
             self.y = 0
             self.on_ground = False
 
@@ -143,6 +178,7 @@ class Tetris:
             board = copy.deepcopy(in_board)
             for pos in self.get_poses():
                 board[pos[1]][pos[0]].set_state(True)
+                board[pos[1]][pos[0]].set_color(self.color)
             return board
 
         def is_on_ground(self, board: list):
@@ -173,8 +209,12 @@ class Tetris:
                 new_shape.append(row)
             self.shape = " ".join(new_shape)
 
+        def quick_down(self, board: list):
+            while not self.is_on_ground(board):
+                self.move()
+            self.move(delta=-1)
 
-        def action(self, action):
+        def action(self, action: str, board: list):
             if action is None:
                 return
 
@@ -184,6 +224,16 @@ class Tetris:
                 self.horizontal_move(-1)
             elif str(action) == "KEY_UP":
                 self.rotate()
+            elif str(action) == " ":
+                self.quick_down(board)
+
+    @staticmethod
+    def make_color(color: list, char: str):
+        # color -> (R, G, B)
+        # Convert character to colored character
+        R, G, B = color
+        string = f"\x1b[38;2;{R};{G};{B}m{char}\x1b[0m"
+        return string
 
 
 if __name__ == "__main__":
@@ -194,6 +244,6 @@ if __name__ == "__main__":
         f = tb.tb_frame
         lineno = tb.tb_lineno
         print(str(e), lineno, f)
-        curses.echo()
         input()
+        curses.echo()
         curses.endwin()
