@@ -73,7 +73,8 @@ class Tetris:
                     self.update_size()
 
 
-                self.display(player.put_player(self.board))
+                temp_board = player.put_player(self.board)
+                self.display(temp_board)
 
 
                 tdelta = (datetime.now() - last).total_seconds()
@@ -113,7 +114,7 @@ class Tetris:
                     player.move()
                     i = 0
         
-            self.board = player.put_player(self.board)
+            self.board = player.put_player(self.board, no_prev=True)
 
             self.check_lines()
 
@@ -213,10 +214,11 @@ class Tetris:
 
 
     class Block:
-        CHARS={"block": "█", "dot": "·"}
+        CHARS={"block": "█", "dot": "·", "prev": "░"}
         def __init__(self, active: bool, color=0):
             self.active = active
             self.color = color
+            self.is_prev = False
 
         def set_state(self, state: bool):
             self.active = state
@@ -224,8 +226,13 @@ class Tetris:
         def set_color(self, color: int):
             self.color = color
 
+        def set_prev(self, prev: bool):
+            self.is_prev = prev
+
         def getch(self):
-            if self.active:
+            if self.is_prev:
+                return self.CHARS['prev']
+            elif self.active:
                 return self.CHARS['block']
             else:
                 return self.CHARS['dot']
@@ -257,35 +264,54 @@ class Tetris:
         def move(self, delta=1):
             self.y += delta
 
-        def get_poses(self, custom_shape=None):
+        def get_poses(self, custom_shape=None, custom_pos=None):
+            px, py = [self.x, self.y] if custom_pos is None else custom_pos
             shape = custom_shape if custom_shape is not None else self.shape
             poses = []
             for y, line in enumerate(shape.split()):
                 for x, char in enumerate(line):
                     if char == "x":
-                        poses.append((x+self.x, y+self.y))
+                        poses.append((x+px, y+py))
             return poses
 
-        def put_player(self, in_board: list):
+        def get_preview(self, board: list):
+            py = self.y
+            while not self.is_on_ground(board, custom_pos=[self.x, py]):
+                py += 1
+            end_poses = self.get_poses(custom_pos=[self.x, py])
+            for pos in end_poses:
+                board[pos[1]][pos[0]].set_state(True)
+                board[pos[1]][pos[0]].set_color(self.color)
+                board[pos[1]][pos[0]].set_prev(True)
+
+
+        def put_player(self, in_board: list, no_prev=False):
             board = copy.deepcopy(in_board)
+            if not no_prev:
+                self.get_preview(board)
             for pos in self.get_poses():
                 board[pos[1]][pos[0]].set_state(True)
                 board[pos[1]][pos[0]].set_color(self.color)
             return board
 
-        def is_on_ground(self, board: list):
-            under_poses = [[x[0], x[1]+1] for x in self.get_poses()]
-            max_y = self.y + len(self.shape.split()) + 1
+        def is_on_ground(self, board: list, custom_pos=None):
+            under_poses = [[x[0], x[1]+1] for x in self.get_poses(custom_pos=custom_pos)]
+            y = self.y if custom_pos is None else custom_pos[1]
+            max_y = y + len(self.shape.split()) + 1
             if max_y > self.size[1]:
-                self.on_ground = True
-                return self.on_ground
+                if custom_pos is None:
+                    self.on_ground = True
+                return True
             else:
-                self.on_ground = False
+                if custom_pos is None:
+                    self.on_ground = False
 
             for pos in under_poses:
                 if board[pos[1]][pos[0]].active:
-                    self.on_ground = True
-                    return self.on_ground
+                    if custom_pos is None:
+                        self.on_ground = True
+                    return True
+            return False
 
 
         def horizontal_move(self, delta: int, board: list):
