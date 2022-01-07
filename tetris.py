@@ -5,6 +5,7 @@ import time
 import copy
 from datetime import datetime
 import sys
+import random
 
 
 class Tetris:
@@ -14,6 +15,7 @@ class Tetris:
 
         # Setup screen and game window
         self.scr = curses.initscr()
+        self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
         curses.noecho()
         curses.cbreak()
         curses.curs_set(False)
@@ -25,18 +27,21 @@ class Tetris:
         self.win.border(0, 0, 0, 0, 0, 0, 0, 0)
         self.win.refresh()
 
-        while True:
+        self.score_win = curses.newwin(3, 20, 0, self.SIZE[0]+3)
+        self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+        self.score_win.addstr(1, 1, "Score: 0", curses.A_BOLD)
+        self.score_win.refresh()
+
+        while not self.check_end():
             self.display()
 
-            time.sleep(1)
-
-            player = self.Player(self.Player.TYPES['l'], self.SIZE)
+            player = self.Player(self.Player.TYPES[random.choice(list(self.Player.TYPES.keys()))], self.SIZE)
            
-            move_every = 10
+            move_every = 3
             i = 0
             last = datetime.now()
             
-            while not player.is_on_ground():
+            while not player.is_on_ground(self.board):
                 self.display(player.put_player(self.board))
                 tdelta = (datetime.now() - last).total_seconds()
                 tdelta = tdelta if tdelta < 0.1 else 0
@@ -55,11 +60,12 @@ class Tetris:
                     player.move()
                     i = 0
         
-            player.move(delta=-1)
             self.board = player.put_player(self.board)
 
         # End screen
+        curses.flushinp()
         self.win.getch()
+        input()
         curses.echo()
         curses.endwin()
 
@@ -71,6 +77,12 @@ class Tetris:
                 row.append(self.Block(False))
             board.append(row)
         return board
+
+    def check_end(self):
+        for block in self.board[0]:
+            if block.active:
+                return True
+        return False
 
     def display(self, custom_board=None):
         board = self.board if custom_board is None else custom_board
@@ -100,9 +112,13 @@ class Tetris:
 
     class Player:
         TYPES = {
-            "box": ["BOX", "xx xx"],
-            "l": ["L", "x. x. xx"],
-            "rl": ["RL", ".x .x xx"],
+            "o": ["o", "xx xx"],
+            "l": ["l", "..x xxx"],
+            "j": ["j", "x.. xxx"],
+            "i": ["i", "xxxx"],
+            "s": ["s", ".xx xx."],
+            "t": ["t", ".x. xxx"],
+            "z": ["z", "xx. .xx"],
         }
         def __init__(self, block_type: list, map_size: list):
             self.name = block_type[0]
@@ -110,6 +126,7 @@ class Tetris:
             self.size = map_size
             self.x = 10 - (len(self.shape.split()) // 2)
             self.y = 0
+            self.on_ground = False
 
         def move(self, delta=1):
             self.y += delta
@@ -128,12 +145,20 @@ class Tetris:
                 board[pos[1]][pos[0]].set_state(True)
             return board
 
-        def is_on_ground(self):
-            max_y = self.y + len(self.shape.split())
+        def is_on_ground(self, board: list):
+            under_poses = [[x[0], x[1]+1] for x in self.get_poses()]
+            max_y = self.y + len(self.shape.split()) + 1
             if max_y > self.size[1]:
-                return True
+                self.on_ground = True
+                return self.on_ground
             else:
-                return False
+                self.on_ground = False
+
+            for pos in under_poses:
+                if board[pos[1]][pos[0]].active:
+                    self.on_ground = True
+                    return self.on_ground
+
 
         def horizontal_move(self, delta: int):
             if self.x + delta in range(0, self.size[0]-1):
