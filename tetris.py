@@ -15,6 +15,8 @@ class Tetris:
         self.score = 0
         self.next = "o"
 
+        self.restart = False
+
         # Setup screen and game window
         self.scr = curses.initscr()
         curses.start_color()
@@ -33,10 +35,10 @@ class Tetris:
         self.win.border(0, 0, 0, 0, 0, 0, 0, 0)
         self.win.refresh()
 
-        self.score_win = curses.newwin(3, 20, 1, self.SIZE[0]*2+3)
+        self.score_win = curses.newwin(4, 20, 1, self.SIZE[0]*2+3)
         self.update_score(0)
 
-        self.next_win = curses.newwin(7, 14, 5, self.SIZE[0]*2+6)
+        self.next_win = curses.newwin(7, 14, 6, self.SIZE[0]*2+6)
         self.update_next()
 
         self.update_size()
@@ -53,11 +55,17 @@ class Tetris:
             while not player.is_on_ground(self.board):
                 if curses.is_term_resized(self.TERM_SIZE[0], self.TERM_SIZE[1]):
                     self.update_size()
+
+
                 self.display(player.put_player(self.board))
+
+
                 tdelta = (datetime.now() - last).total_seconds()
                 tdelta = tdelta if tdelta < 0.1 else 0
                 last = datetime.now()
                 time.sleep(0.1 - tdelta)
+
+
                 action = None
                 try:
                     action = self.win.getkey()
@@ -65,6 +73,12 @@ class Tetris:
                     pass
                 curses.flushinp()
                 player.action(action, self.board)
+
+                if player.STOP:
+                    self.restart = True
+                    curses.endwin()
+                    return
+
                 i += 1
                 if i >= move_every or action == "KEY_DOWN":
                     player.move()
@@ -72,7 +86,9 @@ class Tetris:
         
             self.board = player.put_player(self.board)
 
-        # End screen
+            self.check_lines()
+
+        # Emergency exit screen
         curses.flushinp()
         self.score_win.getch()
         curses.echo()
@@ -101,6 +117,7 @@ class Tetris:
         self.score_win.clear()
         self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
         self.score_win.addstr(1, 2, f"Score: {self.score + delta}", curses.A_BOLD)
+        self.score_win.addstr(2, 2, f"Level: Not Yet", curses.A_BOLD)
         self.score_win.refresh()
 
     def update_next(self):
@@ -130,6 +147,22 @@ class Tetris:
             if block.active:
                 return True
         return False
+
+    def check_lines(self):
+        rows = 0
+        for y, row in enumerate(self.board):
+            if len([x for x in row if x.active]) == self.SIZE[0]:
+                rows += 1
+                self.board.pop(y)
+                self.add_row()
+                    
+
+    def add_row(self, custom_board=None):
+        board = self.board if custom_board is None else custom_board
+        row = []
+        for x in range(self.SIZE[0]):
+            row.append(self.Block(False))
+        board.insert(0, row)
 
     def display(self, custom_board=None):
         board = self.board if custom_board is None else custom_board
@@ -183,6 +216,7 @@ class Tetris:
             self.x = self.size[0]//2 - (len(self.shape.split()) // 2)
             self.y = 0
             self.on_ground = False
+            self.STOP = False
 
         def move(self, delta=1):
             self.y += delta
@@ -257,6 +291,11 @@ class Tetris:
                 self.rotate(board)
             elif str(action) == " ":
                 self.quick_down(board)
+            elif str(action) == "q":
+                curses.endwin()
+                exit()
+            elif str(action) == "r":
+                self.STOP = True
 
     @staticmethod
     def make_color(color: list, char: str):
@@ -268,6 +307,11 @@ class Tetris:
 
 
 if __name__ == "__main__":
+    while True:
+        tetris = Tetris()
+        if not tetris.restart:
+            break
+    exit()
     try:
         tetris = Tetris()
     except Exception as e:
