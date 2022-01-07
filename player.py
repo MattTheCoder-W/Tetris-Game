@@ -1,5 +1,10 @@
 #!/bin/usr/env python3
 from copy import deepcopy
+from sys import platform
+if platform == "linux" or platform == "linux2":
+    linux = True
+else:
+    linux = False
 
 """
 Klasa Player - odpowiada za bloczek gracza, czyli spadający klocek, którym gracz może poruszać, obracać go oraz kontrolować prędkość updaku

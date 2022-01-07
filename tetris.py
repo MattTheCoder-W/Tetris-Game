@@ -12,6 +12,12 @@ import math
 from block import Block
 from player import Player
 
+from sys import platform
+if platform == "linux" or platform == "linux2":
+    linux = True
+else:
+    linux = False
+
 
 class Tetris:
     def __init__(self):
@@ -129,10 +135,12 @@ class Tetris:
     def setup_screen(self):
         # Setup screen and game windows
         self.scr = curses.initscr()
-        curses.start_color()
-        curses.use_default_colors()
-        for i in range(0, curses.COLORS):
-            curses.init_pair(i + 1, i, -1)
+        
+        if linux:
+            curses.start_color()
+            curses.use_default_colors()
+            for i in range(0, curses.COLORS):
+                curses.init_pair(i + 1, i, -1)
         curses.noecho()
         curses.cbreak()
         curses.curs_set(False)
@@ -175,7 +183,8 @@ class Tetris:
     def update_size(self):
         while True:
             self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
-            curses.resizeterm(self.TERM_SIZE[0], self.TERM_SIZE[1])
+            if linux:
+                curses.resizeterm(self.TERM_SIZE[0], self.TERM_SIZE[1])
             try:
                 if self.TERM_SIZE[1] < (self.SIZE[0]*2+2)+20+2 or self.TERM_SIZE[0] < self.SIZE[1]+2:
                         self.win.addstr(0, 0, "Terminal too small!")
@@ -212,13 +221,15 @@ class Tetris:
             keys = list(Player.TYPES.keys())
             keys.remove(self.next)
             self.next = random.choice(keys)
-        # self.next = random.choice(list(Player.TYPES.keys()))
         self.next_win.addstr(1, 3, f"Next: {self.next}", curses.A_BOLD)
         shape, color = Player.TYPES[self.next]
         for y, row in enumerate(shape.split()):
             for x, block in enumerate(row):
                 char = Block.CHARS['block'] if block == "x" else " "
-                self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
+                if linux:
+                    self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
+                else:
+                    self.next_win.addstr(y+3, x*2+3, char*2)
         self.next_win.refresh()
 
     def init_board(self, one_row=False):
@@ -260,7 +271,10 @@ class Tetris:
         for y, row in enumerate(board):
             for x, block in enumerate(row):
                 char = block.getch()*2 if block.active else " " + block.getch()
-                self.win.addstr(y+1, x*2+1, char, curses.color_pair(block.color))
+                if linux:
+                    self.win.addstr(y+1, x*2+1, char, curses.color_pair(block.color))
+                else:
+                    self.win.addstr(y+1, x*2+1, char)
         self.win.refresh()
 
 
