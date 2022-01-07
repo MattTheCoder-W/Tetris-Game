@@ -6,11 +6,16 @@ Gra na pisana w pelni w Pythonie z wykorzystaniem biblioteki curses, która pozwa
 
 ## Wymagania
 
-Wszystkie wymagania znajduja sie w pliku `requirements.txt` lub jezeli korzystasz z Windowsa to w pliku `requirements-win.txt`
+Wszystkie wymagania znajduja sie w pliku `requirements.txt`
+
+lub jezeli korzystasz z Windowsa to w pliku `requirements-win.txt`
 
 `pip install -r requirements.txt`
+
 lub
+
 `pip install -r requirements-win.txt`
+
 
 ## Uwagi
 
