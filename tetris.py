@@ -13,6 +13,7 @@ class Tetris:
         self.SIZE = (10, 20)  # width, height
         self.board = self.init_board()
         self.score = 0
+        self.next = "o"
 
         # Setup screen and game window
         self.scr = curses.initscr()
@@ -25,21 +26,25 @@ class Tetris:
         curses.cbreak()
         curses.curs_set(False)
         self.scr.keypad(True)
-        self.win = curses.newwin(self.SIZE[1]+2, self.SIZE[0]+2, 0, 0)
+        self.win = curses.newwin(self.SIZE[1]+2, self.SIZE[0]*2+2, 0, 0)
         self.win.keypad(True)
         self.win.nodelay(True)
         self.win.clear()
         self.win.border(0, 0, 0, 0, 0, 0, 0, 0)
         self.win.refresh()
 
-        self.score_win = curses.newwin(3, 20, 0, self.SIZE[0]+3)
+        self.score_win = curses.newwin(3, 20, 1, self.SIZE[0]*2+3)
         self.update_score(0)
+
+        self.next_win = curses.newwin(7, 14, 5, self.SIZE[0]*2+6)
+        self.update_next()
 
         self.update_size()
         while not self.check_end():
             self.display()
 
-            player = self.Player(self.Player.TYPES[random.choice(list(self.Player.TYPES.keys()))], self.SIZE)
+            player = self.Player(self.Player.TYPES[self.next], self.SIZE)
+            self.update_next()
            
             move_every = 3
             i = 0
@@ -60,7 +65,6 @@ class Tetris:
                     pass
                 curses.flushinp()
                 player.action(action, self.board)
-                self.display()
                 i += 1
                 if i >= move_every or action == "KEY_DOWN":
                     player.move()
@@ -79,7 +83,7 @@ class Tetris:
             self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
             curses.resizeterm(self.TERM_SIZE[0], self.TERM_SIZE[1])
             try:
-                if self.TERM_SIZE[1] < (self.SIZE[1]+2)*2 or self.TERM_SIZE[0] < self.SIZE[1]+2:
+                if self.TERM_SIZE[1] < (self.SIZE[0]*2+2)+20+2 or self.TERM_SIZE[0] < self.SIZE[1]+2:
                         self.win.addstr(0, 0, "Terminal too small!")
                         curses.flushinp()
                         self.win.getch()
@@ -96,9 +100,21 @@ class Tetris:
     def update_score(self, delta: int):
         self.score_win.clear()
         self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
-        self.score_win.addstr(1, 1, f"Score: {self.score + delta}", curses.color_pair(10))
+        self.score_win.addstr(1, 2, f"Score: {self.score + delta}", curses.A_BOLD)
         self.score_win.refresh()
 
+    def update_next(self):
+        self.next_win.clear()
+        self.next_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+        self.next = random.choice(list(self.Player.TYPES.keys()))
+        self.next_win.addstr(1, 3, f"Next: {self.next}", curses.A_BOLD)
+        shape = self.Player.TYPES[self.next][1]
+        color = self.Player.TYPES[self.next][2]
+        for y, row in enumerate(shape.split()):
+            for x, block in enumerate(row):
+                char = self.Block.CHARS['block'] if block == "x" else " "
+                self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
+        self.next_win.refresh()
 
     def init_board(self):
         board = []
@@ -119,7 +135,12 @@ class Tetris:
         board = self.board if custom_board is None else custom_board
         for y, row in enumerate(board):
             for x, block in enumerate(row):
-                self.win.addch(y+1, x+1, block.getch(), curses.color_pair(block.getcol()))
+                char = block.getch()
+                if block.active:
+                    char = char*2
+                else:
+                    char = " " + char
+                self.win.addstr(y+1, x*2+1, char, curses.color_pair(block.getcol()))
         self.win.refresh()
 
 
@@ -166,9 +187,10 @@ class Tetris:
         def move(self, delta=1):
             self.y += delta
 
-        def get_poses(self):
+        def get_poses(self, custom_shape=None):
+            shape = custom_shape if custom_shape is not None else self.shape
             poses = []
-            for y, line in enumerate(self.shape.split()):
+            for y, line in enumerate(shape.split()):
                 for x, char in enumerate(line):
                     if char == "x":
                         poses.append((x+self.x, y+self.y))
@@ -196,18 +218,27 @@ class Tetris:
                     return self.on_ground
 
 
-        def horizontal_move(self, delta: int):
-            if self.x + delta in range(0, self.size[0]-1):
-                self.x += delta
+        def horizontal_move(self, delta: int, board: list):
+            poses = self.get_poses()
+            for pos in poses:
+                pos = [pos[0]+delta, pos[1]]
+                if pos[0] not in range(0, self.size[0]) or board[pos[1]][pos[0]].active:
+                    return
+            self.x += delta
 
-        def rotate(self):
+        def rotate(self, board: list):
             new_shape = []
             for x in range(len(self.shape.split()[0]))[::-1]:
                 row = ""
                 for y in range(len(self.shape.split())):
                     row += self.shape.split()[y][x]
                 new_shape.append(row)
-            self.shape = " ".join(new_shape)
+            new_shape = " ".join(new_shape)
+            poses = self.get_poses(custom_shape=new_shape)
+            for pos in poses:
+                if pos[0] not in range(0, self.size[0]) or board[pos[1]][pos[0]].active:
+                    return
+            self.shape = new_shape
 
         def quick_down(self, board: list):
             while not self.is_on_ground(board):
@@ -219,11 +250,11 @@ class Tetris:
                 return
 
             if str(action) == "KEY_RIGHT":
-                self.horizontal_move(1)
+                self.horizontal_move(1, board)
             elif str(action) == "KEY_LEFT":
-                self.horizontal_move(-1)
+                self.horizontal_move(-1, board)
             elif str(action) == "KEY_UP":
-                self.rotate()
+                self.rotate(board)
             elif str(action) == " ":
                 self.quick_down(board)
 
