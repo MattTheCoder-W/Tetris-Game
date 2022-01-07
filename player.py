@@ -112,7 +112,10 @@ class Player:
         poses = self.get_poses(custom_shape=new_shape)
         for pos in poses:
             if pos[0] not in range(0, self.size[0]) or board[pos[1]][pos[0]].active:
-                return
+                if pos[0] < self.x:
+                    self.x+=1
+                else:
+                    self.x-=1
         self.shape = new_shape
 
     def check_pos(self):
@@ -144,4 +147,6 @@ class Player:
             return "RESTART"
         elif str(action) == "p":
             return "PAUSE"
+        elif str(action) == "v":
+            return "PREV" 
 

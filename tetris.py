@@ -31,6 +31,7 @@ class Tetris:
         self.scr, self.win, self.score_win, self.next_win, self.help_win, self.player = [None]*6
         self.level = 1
         self.goalPoints = 0
+        self.prev = True
         
         self.speeds = [0.01667,0.021017, 0.026977, 0.035256, 0.04693, 0.06361, 0.0879, 0.1236, 0.1775, 0.2598, 0.388, 0.59, 0.92, 1.46, 2.36]
 
@@ -88,7 +89,7 @@ class Tetris:
         if curses.is_term_resized(self.TERM_SIZE[0], self.TERM_SIZE[1]):
             self.update_size()
 
-        self.display(self.player.put_player(self.board))
+        self.display(self.player.put_player(self.board, no_prev=not self.prev))
 
         time.sleep(1/self.FPS)
 
@@ -103,6 +104,9 @@ class Tetris:
 
         if response == "SKIP":
             return "SKIP"
+
+        if response == "PREV":
+            self.prev = not self.prev
 
         if response == "RESTART":
             self.restart = True
@@ -152,13 +156,13 @@ class Tetris:
         self.clear_win(self.win)
         self.win.refresh()
 
-        self.score_win = curses.newwin(4, 20, 1, self.SIZE[0]*2+3)
+        self.score_win = curses.newwin(4, 20, 0, self.SIZE[0]*2+3)
         self.update_score(0)
 
-        self.next_win = curses.newwin(7, 14, 5, self.SIZE[0]*2+6)
+        self.next_win = curses.newwin(7, 14, 4, self.SIZE[0]*2+6)
         self.update_next()
 
-        self.help_win = curses.newwin(10, 20, 7+4+1, self.SIZE[0]*2+3)
+        self.help_win = curses.newwin(11, 20, 7+3+1, self.SIZE[0]*2+3)
         self.help_win.border(0, 0, 0, 0, 0, 0, 0, 0)
         help_content = [
             "Help:",
@@ -168,7 +172,8 @@ class Tetris:
             "←/→\t- move",
             "↑\t- rotate",
             "↓\t- faster",
-            "space\t- drop"
+            "space\t- drop",
+            "v\t- preview"
         ]
         for i, content in enumerate(help_content):
             self.help_win.addstr(i+1, 1, content)
@@ -193,8 +198,12 @@ class Tetris:
                 else:
                     self.clear_win(self.win)
                     self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+                    self.next_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+                    self.help_win.border(0, 0, 0, 0, 0, 0, 0, 0)
                     self.win.refresh()
                     self.score_win.refresh()
+                    self.next_win.refresh()
+                    self.help_win.refresh()
                     break
             except:
                 break
