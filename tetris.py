@@ -4,6 +4,7 @@ from curses import wrapper
 import time
 import copy
 from datetime import datetime
+import sys
 
 
 class Tetris:
@@ -24,35 +25,38 @@ class Tetris:
         self.win.border(0, 0, 0, 0, 0, 0, 0, 0)
         self.win.refresh()
 
-        self.display()
-
-        time.sleep(1)
-
-        player = self.Player(self.Player.TYPES['l'], self.SIZE)
-       
-        move_every = 10
-        i = 0
-        last = datetime.now()
-        
-        while not player.is_on_ground():
-            self.display(player.put_player(self.board))
-            tdelta = (datetime.now() - last).total_seconds()
-            tdelta = tdelta if tdelta < 0.1 else 0
-            last = datetime.now()
-            time.sleep(0.1 - tdelta)
-            action = None
-            try:
-                action = self.win.getkey()
-            except:
-                pass
-            curses.flushinp()
-            print(action)
-            player.action(action)
+        while True:
             self.display()
-            i += 1
-            if i >= move_every:
-                player.move()
-                i = 0
+
+            time.sleep(1)
+
+            player = self.Player(self.Player.TYPES['l'], self.SIZE)
+           
+            move_every = 10
+            i = 0
+            last = datetime.now()
+            
+            while not player.is_on_ground():
+                self.display(player.put_player(self.board))
+                tdelta = (datetime.now() - last).total_seconds()
+                tdelta = tdelta if tdelta < 0.1 else 0
+                last = datetime.now()
+                time.sleep(0.1 - tdelta)
+                action = None
+                try:
+                    action = self.win.getkey()
+                except:
+                    pass
+                curses.flushinp()
+                player.action(action)
+                self.display()
+                i += 1
+                if i >= move_every or action == "KEY_DOWN":
+                    player.move()
+                    i = 0
+        
+            player.move(delta=-1)
+            self.board = player.put_player(self.board)
 
         # End screen
         self.win.getch()
@@ -107,8 +111,8 @@ class Tetris:
             self.x = 10 - (len(self.shape.split()) // 2)
             self.y = 0
 
-        def move(self):
-            self.y += 1
+        def move(self, delta=1):
+            self.y += delta
 
         def get_poses(self):
             poses = []
@@ -134,7 +138,16 @@ class Tetris:
         def horizontal_move(self, delta: int):
             if self.x + delta in range(0, self.size[0]-1):
                 self.x += delta
-            print(self.x)
+
+        def rotate(self):
+            new_shape = []
+            for x in range(len(self.shape.split()[0]))[::-1]:
+                row = ""
+                for y in range(len(self.shape.split())):
+                    row += self.shape.split()[y][x]
+                new_shape.append(row)
+            self.shape = " ".join(new_shape)
+
 
         def action(self, action):
             if action is None:
@@ -144,13 +157,18 @@ class Tetris:
                 self.horizontal_move(1)
             elif str(action) == "KEY_LEFT":
                 self.horizontal_move(-1)
+            elif str(action) == "KEY_UP":
+                self.rotate()
 
 
 if __name__ == "__main__":
     try:
         tetris = Tetris()
     except Exception as e:
-        print(str(e))
+        exc_type, exc_obj, tb = sys.exc_info()
+        f = tb.tb_frame
+        lineno = tb.tb_lineno
+        print(str(e), lineno, f)
         curses.echo()
         input()
         curses.endwin()
