@@ -38,8 +38,24 @@ class Tetris:
         self.score_win = curses.newwin(4, 20, 1, self.SIZE[0]*2+3)
         self.update_score(0)
 
-        self.next_win = curses.newwin(7, 14, 6, self.SIZE[0]*2+6)
+        self.next_win = curses.newwin(7, 14, 5, self.SIZE[0]*2+6)
         self.update_next()
+
+        self.help_win = curses.newwin(10, 20, 7+4+1, self.SIZE[0]*2+3)
+        self.help_win.border(0, 0, 0, 0, 0, 0, 0, 0)
+        help_content = [
+            "Help:",
+            "q\t- quit",
+            "r\t- restart",
+            "p\t- pause",
+            "←/→\t- move",
+            "↑\t- rotate",
+            "↓\t- faster",
+            "space\t- drop"
+        ]
+        for i, content in enumerate(help_content):
+            self.help_win.addstr(i+1, 1, content)
+        self.help_win.refresh()
 
         self.update_size()
         while not self.check_end():
@@ -48,7 +64,7 @@ class Tetris:
             player = self.Player(self.Player.TYPES[self.next], self.SIZE)
             self.update_next()
            
-            move_every = 3
+            move_every = 5
             i = 0
             last = datetime.now()
             
@@ -79,6 +95,19 @@ class Tetris:
                     curses.endwin()
                     return
 
+                if player.PAUSE:
+                    while player.PAUSE:
+                        self.pause_screen()
+                        time.sleep(0.5)
+                        try:
+                            inp = self.win.getkey()
+                            if inp == "p":
+                                player.PAUSE = False
+                        except:
+                            pass
+                        curses.flushinp()
+
+
                 i += 1
                 if i >= move_every or action == "KEY_DOWN":
                     player.move()
@@ -93,6 +122,12 @@ class Tetris:
         self.score_win.getch()
         curses.echo()
         curses.endwin()
+    
+    def pause_screen(self):
+        for y in range(self.SIZE[1]):
+            row = " "*self.SIZE[0]*2
+            self.win.addstr(y+1, 1, row)
+        self.win.addstr(self.SIZE[1]//2, self.SIZE[0]//2*2-2, "PAUSE")
 
     def update_size(self):
         while True:
@@ -217,6 +252,7 @@ class Tetris:
             self.y = 0
             self.on_ground = False
             self.STOP = False
+            self.PAUSE = False
 
         def move(self, delta=1):
             self.y += delta
@@ -296,6 +332,8 @@ class Tetris:
                 exit()
             elif str(action) == "r":
                 self.STOP = True
+            elif str(action) == "p":
+                self.PAUSE = True
 
     @staticmethod
     def make_color(color: list, char: str):
