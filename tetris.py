@@ -32,12 +32,12 @@ class Tetris:
         self.level = 1
         self.goalPoints = 0
         
-        speeds = [0.01667,0.021017, 0.026977, 0.035256, 0.04693, 0.06361, 0.0879, 0.1236, 0.1775, 0.2598, 0.388, 0.59, 0.92, 1.46, 2.36]
+        self.speeds = [0.01667,0.021017, 0.026977, 0.035256, 0.04693, 0.06361, 0.0879, 0.1236, 0.1775, 0.2598, 0.388, 0.59, 0.92, 1.46, 2.36]
 
         self.setup_screen()
         self.update_size()
         self.last = datetime.now()
-        self.move_every = int(round(1/speeds[self.level-1], 0))
+        self.move_every = int(round(1/self.speeds[self.level-1], 0))
         self.i = 0
 
         self.main()
@@ -212,6 +212,7 @@ class Tetris:
             if self.level < 15:
                 self.level += 1
                 self.goalPoints -= goalPointsRequired
+                self.move_every = int(round(1/self.speeds[self.level-1], 0))
                 self.update_score(0)
 
     def update_next(self):
