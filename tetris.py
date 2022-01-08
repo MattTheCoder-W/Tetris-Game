@@ -12,6 +12,7 @@ import math
 from block import Block
 from player import Player
 
+from os import get_terminal_size
 from sys import platform
 if platform == "linux" or platform == "linux2":
     linux = True
@@ -137,14 +138,22 @@ class Tetris:
         win.border(0, 0, 0, 0, 0, 0, 0, 0)
 
     def setup_screen(self):
+        self.TERM_SIZE = list(get_terminal_size())
+        if self.TERM_SIZE[0] < self.SIZE[0] or self.TERM_SIZE[1] < self.SIZE[1]:
+            print("Terminal too small!")
+            exit(1)
+            
         # Setup screen and game windows
         self.scr = curses.initscr()
-        
-        if linux:
-            curses.start_color()
-            curses.use_default_colors()
-            for i in range(0, curses.COLORS):
+
+        curses.start_color()
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            try:
                 curses.init_pair(i + 1, i, -1)
+            except:
+                pass
+
         curses.noecho()
         curses.cbreak()
         curses.curs_set(False)
@@ -236,10 +245,7 @@ class Tetris:
         for y, row in enumerate(shape.split()):
             for x, block in enumerate(row):
                 char = Block.CHARS['block'] if block == "x" else " "
-                if linux:
-                    self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
-                else:
-                    self.next_win.addstr(y+3, x*2+3, char*2)
+                self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
         self.next_win.refresh()
 
     def init_board(self, one_row=False):
@@ -282,10 +288,7 @@ class Tetris:
         for y, row in enumerate(board):
             for x, block in enumerate(row):
                 char = block.getch()*2 if block.active else " " + block.getch()
-                if linux:
-                    self.win.addstr(y+1, x*2+1, char, curses.color_pair(block.color))
-                else:
-                    self.win.addstr(y+1, x*2+1, char)
+                self.win.addstr(y+1, x*2+1, char, curses.color_pair(block.color))
         self.win.refresh()
 
 
