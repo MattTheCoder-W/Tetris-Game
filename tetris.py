@@ -8,11 +8,13 @@ from datetime import datetime
 import random
 import math
 
-# Import modulow gry
+# Import modułów gry
 from block import Block
 from player import Player
 
 from os import get_terminal_size
+
+# Sprawdzanie platformy (niektore części skryptu sie różnią)
 from sys import platform
 if platform == "linux" or platform == "linux2":
     linux = True
@@ -20,6 +22,25 @@ else:
     linux = False
 
 
+"""
+Klasa Tetris - odpowiada za przebieg oraz wyświetlanie gry.
+
+Argumenty:
+    FPS - liczba klatek na sekundę (im więcej tym szybciej gra się toczy)
+    SIZE - wielkość planszy tetris
+    board - plansza gry
+    score - aktualny wynik gracza
+    next - nazwa następnego bloczku
+    restart - flaga, która określa czy po zakończeniu działania obiektu ma być ponownie uruchomiona gra
+    scr ... help_win - okna gry
+    player - obiekt gracza
+    level - aktualny poziom gry
+    goalPoints - punkty zniszczenia warstw (na ich podstawie zwiększa się poziom gry)
+    prev - flaga określająca czy ma być wyświetlany podgląd opadającego bloczku na samym dole
+    speeds - prędkości w zależności od poziomu (1-15)
+    i - licznik klatek
+    move_every - co ile klatek blok gracza ma pójść w dół (ta wartość z mniejsza się wraz ze wzrostem poziomu)
+"""
 class Tetris:
     def __init__(self):
         self.FPS = 60
@@ -38,34 +59,37 @@ class Tetris:
 
         self.setup_screen()
         self.update_size()
-        self.last = datetime.now()
         self.move_every = int(round(1/self.speeds[self.level-1], 0))
         self.i = 0
 
         self.main()
     
+    # Funkcja z główną pętlą gry
     def main(self):
+        # Powtarzanie dopóki gra się nie skończy
         while not self.check_end():
             self.player = Player(Player.TYPES[self.next], self.SIZE)
-            self.update_next()
+            self.update_next() # Aktualizacja następnego bloczku (podgląd po prawej)
            
+            # Powtarzanie dopóki gracz nie dotknął ziemi lub innych bloczkóœ
             while not self.player.is_on_ground(self.board, inside=True):
-                output = self.player_action()
-                if output == "STOP":
+                output = self.player_action() # Sterowanie graczem
+                if output == "STOP": # gracz wcisnął stop
                     return
-                if output == "SKIP":
+                if output == "SKIP": # gracz wcisnął szybkie zrzucenie
                     break
 
-            self.player.move(-1)
+            self.player.move(-1) # Cofamy gracza, gdyż aktualnie znajduje się w innym bloku/ścianie
 
-            self.display()
-            self.board = self.player.put_player(self.board, no_prev=True)
-            self.check_lines()
+            self.display() # Wyświetlamy planszę
+            self.board = self.player.put_player(self.board, no_prev=True) # Wrzucamy gracza na planszę położonych bloków
+            self.check_lines() # Sprawdzamy czy nie ułożono pełnych warstw do usunięcia (oraz naliczamy punkty)
 
-        self.display()
+        self.display() # Wyświetlamy planszę końcową
 
-        self.win.addstr(1, 1, "GAME OVER!")
+        self.win.addstr(1, 1, "GAME OVER!") # Informacja ,że gra dobiegła końca
 
+        # Pętla po zakończeniu gry, która pozwala na oglądanie planszy oraz restart gry lub wyjście
         while True:
             try:
                 inp = self.win.getkey()
@@ -80,20 +104,24 @@ class Tetris:
             except:
                 time.sleep(0.5)
 
-        # Emergency exit screen
+        # Końcowe wyłączenie curses (bez tego terminal nie będzie dobrze działał po wyjściu z programu)
         curses.flushinp()
         self.score_win.getch()
         curses.echo()
         curses.endwin()
 
+    # Funkcja odpowada za akcje gracza
     def player_action(self):
+        # Sprawdzamy czy wielkość terminala została zmnieniona
         if curses.is_term_resized(self.TERM_SIZE[0], self.TERM_SIZE[1]):
-            self.update_size()
+            self.update_size() # Uaktualniamy wielkość terminala
 
+        # Wyświetlamy planszę razem z graczem oraz podglądem jeżeli self.prev == True
         self.display(self.player.put_player(self.board, no_prev=not self.prev))
 
-        time.sleep(1/self.FPS)
+        time.sleep(1/self.FPS) # Utrzymujemy klatkarz (dla prostoty nie odejmujemy czasu, jaki został zajęty przez działanie algorytmu)
 
+        # Wczytujemy klawisz gracza
         action = None
         try:
             action = self.win.getkey()
@@ -101,22 +129,23 @@ class Tetris:
             pass
 
         curses.flushinp()
-        response = self.player.action(action, self.board)
+        response = self.player.action(action, self.board) # Przekazujemy klawisz do obiektu gracza, oraz otrzymujemy odpowiedź
 
-        if response == "SKIP":
+        if response == "SKIP": # Gracz wcisnął szybkie zrzucenie bloku
             return "SKIP"
 
-        if response == "PREV":
+        if response == "PREV": # Gracz zmienił opcję podglądu bloku
             self.prev = not self.prev
 
-        if response == "RESTART":
+        if response == "RESTART": # Gracz wcisnął restart
             self.restart = True
 
-        if response in ["STOP", "RESTART"]:
+        if response in ["STOP", "RESTART"]: # Gracz chce zakończyć aktualną grę
             curses.endwin()
             return "STOP"
 
-        if response == "PAUSE":
+        if response == "PAUSE": # Gracz kliknął pauzę
+            # Pętla oczekująca na wyłączenie pauzy
             while True:
                 self.pause_screen()
                 time.sleep(1/self.FPS)
@@ -129,23 +158,28 @@ class Tetris:
                 curses.flushinp()
 
         self.i += 1
+
+        # Sprawdzamy czy jest czas na przemieszczenie bloku gracza w dół
         if self.i >= self.move_every or action == "KEY_DOWN":
             self.player.move()
             self.i = 0
 
+    # Wyczyszczenie danego okienka
     def clear_win(self, win):
         win.clear()
         win.border(0, 0, 0, 0, 0, 0, 0, 0)
 
+    # Funkcja ustawiająca wszystkie okna gry
     def setup_screen(self):
         self.TERM_SIZE = list(get_terminal_size())
         if self.TERM_SIZE[0] < self.SIZE[0] or self.TERM_SIZE[1] < self.SIZE[1]:
             print("Terminal too small!")
             exit(1)
             
-        # Setup screen and game windows
+        # Główne okno
         self.scr = curses.initscr()
 
+        # Włączenie kolorów
         curses.start_color()
         curses.use_default_colors()
         for i in range(0, curses.COLORS):
@@ -154,23 +188,29 @@ class Tetris:
             except:
                 pass
 
+        # Ustawienia okna globalnego
         curses.noecho()
         curses.cbreak()
         curses.curs_set(False)
         self.scr.keypad(True)
 
+        # curses.newwin(wysokosc, szerokosc, y, x)
+        # Ustawienia okna planszy tetris
         self.win = curses.newwin(self.SIZE[1]+2, self.SIZE[0]*2+2, 0, 0)
         self.win.keypad(True)
         self.win.nodelay(True)
         self.clear_win(self.win)
         self.win.refresh()
 
+        # Ustawienia okna punktacji
         self.score_win = curses.newwin(4, 20, 0, self.SIZE[0]*2+3)
         self.update_score(0)
 
+        # Ustawienia okna kolejnego bloku
         self.next_win = curses.newwin(7, 14, 4, self.SIZE[0]*2+6)
         self.update_next()
 
+        # Ustawienia okna pomocy
         self.help_win = curses.newwin(11, 20, 7+3+1, self.SIZE[0]*2+3)
         self.help_win.border(0, 0, 0, 0, 0, 0, 0, 0)
         help_content = [
@@ -188,12 +228,14 @@ class Tetris:
             self.help_win.addstr(i+1, 1, content)
         self.help_win.refresh()
     
+    # Funkcja ekranu pauzy na planszy tetris
     def pause_screen(self):
         for y in range(self.SIZE[1]):
             row = " "*self.SIZE[0]*2
             self.win.addstr(y+1, 1, row)
         self.win.addstr(self.SIZE[1]//2, self.SIZE[0]//2*2-2, "PAUSE")
 
+    # Akutalizacja rozmiaru terminala (ewentualna informacja, że terminal jest za mały)
     def update_size(self):
         while True:
             self.TERM_SIZE = list(self.scr.getmaxyx())  # Height, width
@@ -205,6 +247,7 @@ class Tetris:
                         curses.flushinp()
                         self.win.getch()
                 else:
+                    # Wyczyszczenie wszystkich okien
                     self.clear_win(self.win)
                     self.score_win.border(0, 0, 0, 0, 0, 0, 0, 0)
                     self.next_win.border(0, 0, 0, 0, 0, 0, 0, 0)
@@ -217,6 +260,7 @@ class Tetris:
             except:
                 break
 
+    # Funkcja aktualizująca punkację oraz wyświetlająca poziom
     def update_score(self, delta: int):
         self.clear_win(self.score_win)
         self.score += delta
@@ -224,15 +268,17 @@ class Tetris:
         self.score_win.addstr(2, 2, f"Level: {self.level} / {self.goalPoints}", curses.A_BOLD)
         self.score_win.refresh()
 
+    # Funkcja aktualizująca poziom
     def update_level(self):
         goalPointsRequired = (self.level + 1) * 5
         if self.goalPoints >= goalPointsRequired:
-            if self.level < 15:
+            if self.level < 15: # 15 to maksymalny poziom
                 self.level += 1
                 self.goalPoints -= goalPointsRequired
                 self.move_every = int(round(1/self.speeds[self.level-1], 0))
                 self.update_score(0)
 
+    # Funkcja aktualizująca (losująca) kolejny klocek oraz wyświetlająca okno następnego klocka
     def update_next(self):
         self.clear_win(self.next_win)
         rand = random.randint(1, 57)
@@ -248,6 +294,7 @@ class Tetris:
                 self.next_win.addstr(y+3, x*2+3, char*2, curses.color_pair(color))
         self.next_win.refresh()
 
+    # Funkcja tworząca pustą planszę tetris (wypełnioną nieaktywnymi obiektami Block)
     def init_board(self, one_row=False):
         board = []
         for y in range(self.SIZE[1]):
@@ -259,9 +306,12 @@ class Tetris:
             board.append(row)
         return board
 
+    # Funkcja sprawdzająca czy gracz przegrał
     def check_end(self):
+        # Jeżeli jakikolwiek bloczek w najwyższej warswie jest aktywny oznacza to że gracz przegrał
         return True if any([block for block in self.board[0] if block.active]) else False
-
+    
+    # Funkcja sprawdzająca i usuwająca kompletne warstwy na planszy (oraz wyliczająca punkty)
     def check_lines(self):
         rows = 0
         for y, row in enumerate(self.board):
@@ -273,16 +323,16 @@ class Tetris:
             return
         multi = [40, 100, 300, 1200]
         cur_score = multi[rows-1] * (self.level + 1)  
-        # cur_goalP = int(round(cur_score/100, 0))
-        # self.goalPoints += cur_goalP
         self.goalPoints += rows * (self.level + 1)
         self.update_score(cur_score)
         self.update_level()
 
+    # Funkcja dodająca nową warstwę do planszy
     def add_row(self, custom_board=None):
         board = self.board if custom_board is None else custom_board
         board.insert(0, self.init_board(one_row=True))
 
+    # Funkcja wyświetlająca planszę tetris
     def display(self, custom_board=None):
         board = self.board if custom_board is None else custom_board
         for y, row in enumerate(board):
@@ -292,6 +342,7 @@ class Tetris:
         self.win.refresh()
 
 
+# Jeżeli wywoływany jest aktualny plik to tworzymy nową grę tetris
 if __name__ == "__main__":
     while True:
         tetris = Tetris()
