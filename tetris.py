@@ -267,8 +267,9 @@ class Tetris:
             return
         multi = [40, 100, 300, 1200]
         cur_score = multi[rows-1] * (self.level + 1)  
-        cur_goalP = int(round(cur_score/100, 0))
-        self.goalPoints += cur_goalP
+        # cur_goalP = int(round(cur_score/100, 0))
+        # self.goalPoints += cur_goalP
+        self.goalPoints += rows * (self.level + 1)
         self.update_score(cur_score)
         self.update_level()
 
