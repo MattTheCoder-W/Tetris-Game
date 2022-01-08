@@ -23,6 +23,7 @@ Autor: MattTheCoder-W
 """
 
 class Player:
+    # Typy bloków
     TYPES = {
         "o": ["xx xx", 227],
         "l": ["..x xxx", 4],
@@ -40,9 +41,11 @@ class Player:
         self.y = 0
         self.on_ground = False
 
+    # Funkcja przemieszczająca gracza o wartość delta (def. 1)
     def move(self, delta=1):
         self.y += delta
 
+    # Funkcja zwracająca wszystkie pozycje bloków z jakich składa się gracz
     def get_poses(self, custom_shape=None, custom_pos=None):
         px, py = [self.x, self.y] if custom_pos is None else custom_pos
         shape = custom_shape if custom_shape is not None else self.shape
@@ -53,6 +56,7 @@ class Player:
                     poses.append((x+px, y+py))
         return poses
 
+    # Funkcja zwracająca podgląd gracza na samym dole planszy
     def get_preview(self, board: list):
         py = self.y
         while not self.is_on_ground(board, custom_pos=[self.x, py]):
@@ -63,6 +67,7 @@ class Player:
             board[pos[1]][pos[0]].set_color(self.color)
             board[pos[1]][pos[0]].set_prev(True)
 
+    # Funkcja zwracająca planszę z wstawionym w nią graczem
     def put_player(self, in_board: list, no_prev=False):
         board = deepcopy(in_board)
         if not no_prev:
@@ -73,6 +78,7 @@ class Player:
             board[pos[1]][pos[0]].set_prev(False)
         return board
 
+    # Funkcja sprawdzająca czy gracz jest na ziemi/innym bloku
     def is_on_ground(self, board: list, custom_pos=None, inside=False):
         under_poses = [[x[0], x[1]+1] for x in self.get_poses(custom_pos=custom_pos)] if not inside else self.get_poses(custom_pos=custom_pos)
         y = self.y if custom_pos is None else custom_pos[1]
@@ -93,6 +99,7 @@ class Player:
                 return True
         return False
 
+    # Funkcja przemieszczająca gracza w osi poziomej (wraz ze sprawdzeniem czy jest to możliwe)
     def horizontal_move(self, delta: int, board: list):
         poses = self.get_poses()
         for pos in poses:
@@ -101,6 +108,7 @@ class Player:
                 return
         self.x += delta
 
+    # Funkcja obracająca gracza (Wraz ze sprawdzeniem czy jest to możliwe)
     def rotate(self, board: list):
         new_shape = []
         for x in range(len(self.shape.split()[0]))[::-1]:
@@ -118,18 +126,21 @@ class Player:
                     self.x-=1
         self.shape = new_shape
 
+    # Funkcja sprawdzająca czy pozycja gracza jest dozwolona
     def check_pos(self):
         max_y = self.y + len(self.shape.split())
         if max_y not in range(0, self.size[1]):
             return False
         return True
 
+    # Funkcja szybkiego zrzucenia gracza
     def quick_down(self, board: list):
         while not self.is_on_ground(board, inside=True):
             self.move()
 
+    # Funkcja zarządzająca wciśniętymi klawiszami
     def action(self, action: str, board: list):
-        if action is None:
+        if action is None: # Jeżeli gracz nie wcisnął żadnego przycisku
             return None
 
         if str(action) == "KEY_RIGHT":
