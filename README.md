@@ -2,6 +2,7 @@
 Projekt na praktyki zawodowe.
 Gra na pisana w pelni w Pythonie z wykorzystaniem biblioteki curses, która pozwala na tworzenie okien oraz zarzadzanie nimi w konsoli.
 
+![Porownanie](https://github.com/MattTheCoder-W/Tetris-Game/blob/main/images/output.gif?raw=true "Porownanie")
 ![Przyklad](https://github.com/MattTheCoder-W/Tetris-Game/blob/main/images/tetris-example.jpg?raw=true "Przyklad")
 
 ## Wymagania
