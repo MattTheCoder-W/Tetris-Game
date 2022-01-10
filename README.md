@@ -1,6 +1,6 @@
 # Tetris
 Projekt na praktyki zawodowe.
-Gra na pisana w pelni w Pythonie z wykorzystaniem biblioteki curses, która pozwala na tworzenie okien oraz zarzadzanie nimi w konsoli.
+Gra na pisana w pelni w Pythonie z wykorzystaniem biblioteki curses, ktÃ³ra pozwala na tworzenie okien oraz zarzadzanie nimi w konsoli.
 
 ![Porownanie](https://github.com/MattTheCoder-W/Tetris-Game/blob/main/images/output.gif?raw=true "Porownanie")
 ![Przyklad](https://github.com/MattTheCoder-W/Tetris-Game/blob/main/images/tetris-example.jpg?raw=true "Przyklad")
@@ -16,8 +16,3 @@ lub jezeli korzystasz z Windowsa to w pliku `requirements-win.txt`
 lub
 
 `pip install -r requirements-win.txt`
-
-
-## Uwagi
-
-Gra pisana byla na systemie GNU/Linux i nie posiada aktualnie kolorystyki bloków na systemie Windows!
